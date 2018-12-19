@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FireSharp.Serialization.JsonNet" Version="1.1.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="2.1.1" />
+    <PackageReference Include="NBitcoin" Version="4.1.1.73" />
+    <PackageReference Include="NBitcoin.Altcoins" Version="1.0.1.31" />
+    <PackageReference Include="Newtonsoft.Json" Version="12.0.1" />
+    <PackageReference Include="QBitNinja.Client" Version="1.0.3.47" />
+    <PackageReference Include="RestSharp" Version="106.5.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Reex.Models\Reex.Models.csproj" />
+  </ItemGroup>
+
+</Project>
