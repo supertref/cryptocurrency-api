@@ -28,7 +28,7 @@ namespace Reex.Controllers
             this.rehiveService = rehiveService;
         }
 
-        // GET api/v1/reex/create
+        // GET api/v1/reex/wallet
         [HttpGet]
         [Route("wallet/{id}/{email}")]
         public async Task<ActionResult<Wallet>> GetWallet(Guid id, string email)
@@ -38,17 +38,37 @@ namespace Reex.Controllers
                 return NotFound(RequestResponse.NotFound());
             }
 
-            var result = await walletManagementService.GetWallets(id, email);
+            var result = await walletManagementService.GetWallet(id, email);
 
-            if(!result.Any())
+            if(result is null)
             {
                 return NotFound(RequestResponse.NotFound("Need to initialise wallet for user"));
             }
 
-            return Ok(result.Select(x => new Wallet(x.ID, x.UserId, null, null, true, x.Label, x.Email, x.Addresses)).FirstOrDefault());
+            return Ok(new Wallet(result.WalletId, result.UserId, null, null, true, result.Label, result.Email, result.Addresses));
         }
 
-        // GET api/v1/reex/create
+        // GET api/v1/reex/wallets
+        [HttpGet]
+        [Route("wallets/{id}/{email}")]
+        public async Task<ActionResult<Wallet>> GetWallets(Guid id, string email)
+        {
+            if (string.IsNullOrEmpty(email))
+            {
+                return NotFound(RequestResponse.NotFound());
+            }
+
+            var result = await walletManagementService.GetWallets(id, email);
+
+            if (!result.Any())
+            {
+                return NotFound(RequestResponse.NotFound("Need to initialise wallet for user"));
+            }
+
+            return Ok(result.Select(x => new Wallet(x.WalletId, x.UserId, null, null, true, x.Label, x.Email, x.Addresses)).FirstOrDefault());
+        }
+
+        // GET api/v1/reex/getbalance
         [HttpGet]
         [Route("getbalance/{id}/{email}")]
         public async Task<ActionResult<Balance>> GetBalance(Guid id, string email)

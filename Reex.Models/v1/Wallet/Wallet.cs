@@ -24,7 +24,7 @@ namespace Reex.Models.v1.Wallet
         public Wallet(Guid Id, Guid userId, string privateKey, string mnemo, bool isEncrypted, string label, string email, IList<Address> addresses)
             : base(SUCCESS, null)
         {
-            this.ID = Id;
+            this.WalletId = Id;
             this.UserId = userId;
             this.PrivateKey = privateKey;
             this.MnemonicCode = mnemo;
@@ -36,7 +36,7 @@ namespace Reex.Models.v1.Wallet
         #endregion
 
         #region properties
-        public Guid ID { get; }
+        public Guid WalletId { get; }
         public Guid UserId { get; }
         public string PrivateKey { get; }
         public string MnemonicCode { get; }

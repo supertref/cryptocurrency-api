@@ -3,9 +3,9 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace Reex.Services.FirebaseService
+namespace Reex.Services.CosmosDbService
 {
-    public interface IFirebaseService
+    public interface ICosmosDbService
     {
         Task<Wallet> CreateWallet(Wallet wallet);
         Task<Wallet> UpdateWallet(Wallet wallet);
