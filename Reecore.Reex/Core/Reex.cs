@@ -90,38 +90,38 @@ namespace NBitcoin.Altcoins
                 BIP34Hash = new uint256("0x000007d91d1254d60e2dd1ae580383070a4ddffa4c64c2eeb4a2f9ecc0414343"),
                 PowLimit = new Target(new uint256("0x000007d91d1254d60e2dd1ae580383070a4ddffa4c64c2eeb4a2f9ecc0414343")),
                 MinimumChainWork = new uint256("0x000000000000000000000000000000000000000000000100a308553b4863b755"),
-                PowTargetTimespan = TimeSpan.FromSeconds(24 * 60 * 60),
-                PowTargetSpacing = TimeSpan.FromSeconds(2.5 * 60),
+                PowTargetTimespan = TimeSpan.FromSeconds(20 * 60),
+                PowTargetSpacing = TimeSpan.FromSeconds(2 * 60),
                 PowAllowMinDifficultyBlocks = false,
-                CoinbaseMaturity = 100,
+                CoinbaseMaturity = 10,
                 PowNoRetargeting = false,
                 RuleChangeActivationThreshold = 1916,
                 MinerConfirmationWindow = 2016,
                 ConsensusFactory = DashConsensusFactory.Instance,
-                SupportSegwit = false
+                SupportSegwit = true
             })
-            .SetBase58Bytes(Base58Type.PUBKEY_ADDRESS, new byte[] { 76 })
-            .SetBase58Bytes(Base58Type.SCRIPT_ADDRESS, new byte[] { 16 })
-            .SetBase58Bytes(Base58Type.SECRET_KEY, new byte[] { 204 })
+            .SetBase58Bytes(Base58Type.PUBKEY_ADDRESS, new byte[] { 61 })
+            .SetBase58Bytes(Base58Type.SCRIPT_ADDRESS, new byte[] { 122 })
+            .SetBase58Bytes(Base58Type.SECRET_KEY, new byte[] { 189 })
             .SetBase58Bytes(Base58Type.EXT_PUBLIC_KEY, new byte[] { 0x04, 0x88, 0xB2, 0x1E })
             .SetBase58Bytes(Base58Type.EXT_SECRET_KEY, new byte[] { 0x04, 0x88, 0xAD, 0xE4 })
             .SetBech32(Bech32Type.WITNESS_PUBKEY_ADDRESS, Encoders.Bech32("dash"))
             .SetBech32(Bech32Type.WITNESS_SCRIPT_ADDRESS, Encoders.Bech32("dash"))
             .SetMagic(0xBD6B0CBF)
-            .SetPort(9999)
+            .SetPort(43210)
             .SetRPCPort(9998)
             .SetMaxP2PVersion(70208)
             .SetName("dash-main")
             .AddAlias("dash-mainnet")
             .AddDNSSeeds(new[]
             {
-                new DNSSeedData("dash.org", "dnsseed.dash.org"),
-                new DNSSeedData("dashdot.io", "dnsseed.dashdot.io"),
-                new DNSSeedData("masternode.io", "dnsseed.masternode.io"),
-                new DNSSeedData("dashpay.io", "dnsseed.dashpay.io")
+                new DNSSeedData("173.249.1.107", "173.249.1.107"),
+                new DNSSeedData("35.237.166.130", "35.237.166.130"),
+                new DNSSeedData("35.196.193.43", "35.196.193.43"),
+                new DNSSeedData("35.231.79.133", "35.231.79.133")
             })
             .AddSeeds(new NetworkAddress[0])
-            .SetGenesis("010000000000000000000000000000000000000000000000000000000000000000000000c762a6567f3cc092f0684bb62b7e00a84890b990f07cc71a6bb58d64b98e02e0022ddb52f0ff0f1ec23fb9010101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff6204ffff001d01044c5957697265642030392f4a616e2f3230313420546865204772616e64204578706572696d656e7420476f6573204c6976653a204f76657273746f636b2e636f6d204973204e6f7720416363657074696e6720426974636f696e73ffffffff0100f2052a010000004341040184710fa689ad5023690c80f3a49c8f13f8d45b8c857fbcbc8bc4a8e4d3eb4b10f4d4604fa08dce601aaf0f470216fe1b51850b4acf21b179c45070ac7b03a9ac00000000");
+            .SetGenesis("0x00000c1b8abb8755561c46ea298cf725c940ca71409f7024bc3ad82fdb1bdc7f");
             return builder;
         }
 
