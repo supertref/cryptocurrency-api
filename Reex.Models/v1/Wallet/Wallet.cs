@@ -1,4 +1,5 @@
-﻿using Reex.Models.v1.ApiResponse;
+﻿using Newtonsoft.Json;
+using Reex.Models.v1.ApiResponse;
 using System;
 using System.Collections.Generic;
 
@@ -10,6 +11,7 @@ namespace Reex.Models.v1.Wallet
     public class Wallet : RequestResponse
     {
         #region constructors
+        public Wallet() : base(SUCCESS, null) { }
         /// <summary>
         /// Initialise a new Wallet
         /// </summary>
@@ -36,14 +38,22 @@ namespace Reex.Models.v1.Wallet
         #endregion
 
         #region properties
-        public Guid WalletId { get; }
-        public Guid UserId { get; }
-        public string PrivateKey { get; }
-        public string MnemonicCode { get; }
-        public bool IsEncrypted { get; }
-        public string Label { get; }
-        public string Email { get; }
-        public IList<Address> Addresses { get; }
+        [JsonProperty("walletId")]
+        public Guid WalletId { get; set; }
+        [JsonProperty("userId")]
+        public Guid UserId { get; set; }
+        [JsonProperty("privateKey")]
+        public string PrivateKey { get; set; }
+        [JsonProperty("mnemonicCode")]
+        public string MnemonicCode { get; set; }
+        [JsonProperty("isEncrypted")]
+        public bool IsEncrypted { get; set; }
+        [JsonProperty("label")]
+        public string Label { get; set; }
+        [JsonProperty("email")]
+        public string Email { get; set; }
+        [JsonProperty("addresses")]
+        public IList<Address> Addresses { get; set; }
         #endregion
     }
 }

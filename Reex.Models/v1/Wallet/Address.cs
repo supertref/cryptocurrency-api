@@ -1,4 +1,4 @@
-﻿using Reex.Models.v1.ApiResponse;
+﻿using Newtonsoft.Json;
 using System;
 
 namespace Reex.Models.v1.Wallet
@@ -9,6 +9,7 @@ namespace Reex.Models.v1.Wallet
     public class Address
     {
         #region constructors
+        public Address() { }
         /// <summary>
         /// Initialise a new Address
         /// </summary>
@@ -28,7 +29,7 @@ namespace Reex.Models.v1.Wallet
                 throw new ArgumentNullException(nameof(label));
             }
 
-            this.ID = Id;
+            this.AddressId = Id;
             this.WalletId = walletId;
             this.MyAddress = myAddress;
             this.Label = label;
@@ -36,10 +37,14 @@ namespace Reex.Models.v1.Wallet
         #endregion
 
         #region properties
-        public Guid ID { get; }
-        public Guid WalletId { get; }
-        public string MyAddress { get; }
-        public string Label { get; }
+        [JsonProperty("addressId")]
+        public Guid AddressId { get; set; }
+        [JsonProperty("walletId")]
+        public Guid WalletId { get; set; }
+        [JsonProperty("myAddress")]
+        public string MyAddress { get; set; }
+        [JsonProperty("label")]
+        public string Label { get; set; }
         #endregion
     }
 }

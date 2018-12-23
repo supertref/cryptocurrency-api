@@ -77,10 +77,13 @@ namespace Reex.Services.CosmosDbService
             {
                 var collectionUri = UriFactory.CreateDocumentCollectionUri(databaseId, collectionId);
 
-                var wallets = await client.CreateDocumentQuery<Wallet>(collectionUri)
-                    .Where(x => x.UserId == userId)
-                    .AsDocumentQuery()
-                    .ExecuteNextAsync<Wallet>();
+                var wallets = await client.CreateDocumentQuery<Wallet>(collectionUri, new FeedOptions
+                {
+                    EnableCrossPartitionQuery = true
+                })
+                .Where(x => x.UserId == userId)
+                .AsDocumentQuery()
+                .ExecuteNextAsync<Wallet>();
 
                 return wallets.ToList();
             }
