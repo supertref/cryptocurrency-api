@@ -137,25 +137,25 @@ namespace NBitcoin.Altcoins
                 BIP34Hash = new uint256("0x0000047d24635e347be3aaaeb66c26be94901a2f962feccd4f95090191f208c1"),
                 PowLimit = new Target(new uint256("0x00000fffff000000000000000000000000000000000000000000000000000000")),
                 MinimumChainWork = new uint256("0x000000000000000000000000000000000000000000000000000924e924a21715"),
-                PowTargetTimespan = TimeSpan.FromSeconds(24 * 60 * 60),
-                PowTargetSpacing = TimeSpan.FromSeconds(2.5 * 60),
+                PowTargetTimespan = TimeSpan.FromSeconds(1 * 60),
+                PowTargetSpacing = TimeSpan.FromSeconds(2 * 60),
                 PowAllowMinDifficultyBlocks = true,
-                CoinbaseMaturity = 100,
+                CoinbaseMaturity = 15,
                 PowNoRetargeting = false,
                 RuleChangeActivationThreshold = 1512,
                 MinerConfirmationWindow = 2016,
                 ConsensusFactory = DashConsensusFactory.Instance,
-                SupportSegwit = false
+                SupportSegwit = true
             })
-            .SetBase58Bytes(Base58Type.PUBKEY_ADDRESS, new byte[] { 140 })
-            .SetBase58Bytes(Base58Type.SCRIPT_ADDRESS, new byte[] { 19 })
-            .SetBase58Bytes(Base58Type.SECRET_KEY, new byte[] { 239 })
+            .SetBase58Bytes(Base58Type.PUBKEY_ADDRESS, new byte[] { 48 })
+            .SetBase58Bytes(Base58Type.SCRIPT_ADDRESS, new byte[] { 12 })
+            .SetBase58Bytes(Base58Type.SECRET_KEY, new byte[] { 108 })
             .SetBase58Bytes(Base58Type.EXT_PUBLIC_KEY, new byte[] { 0x04, 0x35, 0x87, 0xCF })
             .SetBase58Bytes(Base58Type.EXT_SECRET_KEY, new byte[] { 0x04, 0x35, 0x83, 0x94 })
             .SetBech32(Bech32Type.WITNESS_PUBKEY_ADDRESS, Encoders.Bech32("tdash"))
             .SetBech32(Bech32Type.WITNESS_SCRIPT_ADDRESS, Encoders.Bech32("tdash"))
             .SetMagic(0xFFCAE2CE)
-            .SetPort(19999)
+            .SetPort(15551)
             .SetRPCPort(19998)
             .SetMaxP2PVersion(70208)
            .SetName("dash-test")
@@ -166,7 +166,7 @@ namespace NBitcoin.Altcoins
                 new DNSSeedData("masternode.io", "test.dnsseed.masternode.io")
            })
            .AddSeeds(new NetworkAddress[0])
-           .SetGenesis("010000000000000000000000000000000000000000000000000000000000000000000000c762a6567f3cc092f0684bb62b7e00a84890b990f07cc71a6bb58d64b98e02e0dee1e352f0ff0f1ec3c927e60101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff6204ffff001d01044c5957697265642030392f4a616e2f3230313420546865204772616e64204578706572696d656e7420476f6573204c6976653a204f76657273746f636b2e636f6d204973204e6f7720416363657074696e6720426974636f696e73ffffffff0100f2052a010000004341040184710fa689ad5023690c80f3a49c8f13f8d45b8c857fbcbc8bc4a8e4d3eb4b10f4d4604fa08dce601aaf0f470216fe1b51850b4acf21b179c45070ac7b03a9ac00000000");
+           .SetGenesis("0x06b942b8b7f0e05ea38e7871a0db70f71592cfb016ee0ae7d5988f9fea840201");
             return builder;
         }
 
