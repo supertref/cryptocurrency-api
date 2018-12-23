@@ -162,8 +162,8 @@ namespace NBitcoin.Altcoins
            .AddAlias("dash-testnet")
            .AddDNSSeeds(new[]
            {
-                new DNSSeedData("dashdot.io",  "testnet-seed.dashdot.io"),
-                new DNSSeedData("masternode.io", "test.dnsseed.masternode.io")
+                new DNSSeedData("173.249.1.107",  "173.249.1.107"),
+                //new DNSSeedData("masternode.io", "test.dnsseed.masternode.io")
            })
            .AddSeeds(new NetworkAddress[0])
            .SetGenesis("0x06b942b8b7f0e05ea38e7871a0db70f71592cfb016ee0ae7d5988f9fea840201");
