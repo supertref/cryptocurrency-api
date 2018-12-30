@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Configuration;
 using Reex.Models.v1.ApiRequest;
 using Reex.Models.v1.ApiResponse;
 using Reex.Models.v1.Wallet;
@@ -10,6 +12,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http.Headers;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace Reex.Controllers
@@ -21,11 +24,16 @@ namespace Reex.Controllers
     {
         private readonly IWalletManagementService walletManagementService;
         private readonly IRehiveService rehiveService;
+        private readonly IMemoryCache memoryCache;
+        private readonly MemoryCacheEntryOptions cacheEntryOptions;
 
-        public ReexController(IWalletManagementService walletManagementService, IRehiveService rehiveService)
+        public ReexController(IWalletManagementService walletManagementService, IRehiveService rehiveService, IMemoryCache memoryCache, IConfiguration configuration)
         {
             this.walletManagementService = walletManagementService;
             this.rehiveService = rehiveService;
+            this.memoryCache = memoryCache;
+            this.cacheEntryOptions = new MemoryCacheEntryOptions()
+                .SetAbsoluteExpiration(TimeSpan.FromMinutes(int.Parse(configuration["CacheExpiryInMinutes"] ?? "60")));
         }
 
         // GET api/v1/reex/wallet
@@ -33,19 +41,37 @@ namespace Reex.Controllers
         [Route("wallet/{id}/{email}")]
         public async Task<ActionResult<Wallet>> GetWallet(Guid id, string email)
         {
-            if(string.IsNullOrEmpty(email))
+            try
             {
-                return NotFound(RequestResponse.NotFound());
+                if (string.IsNullOrEmpty(email))
+                {
+                    return NotFound(RequestResponse.NotFound());
+                }
+
+                var identity = User.Identity as ClaimsIdentity;
+                if (identity is null || identity.Claims.Where(x => x.Type == "ID" && x.Value.ToLower() == id.ToString().ToLower()).FirstOrDefault() is null)
+                {
+                    return BadRequest(RequestResponse.BadRequest());
+                }
+
+                if (User.Identity.Name != email)
+                {
+                    return BadRequest(RequestResponse.BadRequest());
+                }
+
+                var result = await walletManagementService.GetWallet(id, email);
+
+                if (result is null)
+                {
+                    return NotFound(RequestResponse.NotFound("Need to initialise wallet for user"));
+                }
+
+                return Ok(new Wallet(result.WalletId, result.UserId, null, null, true, result.Label, result.Email, result.Addresses));
             }
-
-            var result = await walletManagementService.GetWallet(id, email);
-
-            if(result is null)
+            catch(Exception ex)
             {
-                return NotFound(RequestResponse.NotFound("Need to initialise wallet for user"));
+                return StatusCode((int)HttpStatusCode.InternalServerError, RequestResponse.InternalServerError());
             }
-
-            return Ok(new Wallet(result.WalletId, result.UserId, null, null, true, result.Label, result.Email, result.Addresses));
         }
 
         // GET api/v1/reex/wallets
@@ -53,19 +79,31 @@ namespace Reex.Controllers
         [Route("wallets/{id}/{email}")]
         public async Task<ActionResult<Wallet>> GetWallets(Guid id, string email)
         {
-            if (string.IsNullOrEmpty(email))
+            try
             {
-                return NotFound(RequestResponse.NotFound());
+                if (string.IsNullOrEmpty(email))
+                {
+                    return NotFound(RequestResponse.NotFound());
+                }
+
+                if (User.Identity.Name != email)
+                {
+                    return BadRequest(RequestResponse.BadRequest());
+                }
+
+                var result = await walletManagementService.GetWallets(id, email);
+
+                if (!result.Any())
+                {
+                    return NotFound(RequestResponse.NotFound($"Need to initialise wallets for user"));
+                }
+
+                return Ok(result.Select(x => new Wallet(x.WalletId, x.UserId, null, null, true, x.Label, x.Email, x.Addresses)).FirstOrDefault());
             }
-
-            var result = await walletManagementService.GetWallets(id, email);
-
-            if (!result.Any())
+            catch(Exception ex)
             {
-                return NotFound(RequestResponse.NotFound("Need to initialise wallet for user"));
+                return StatusCode((int)HttpStatusCode.InternalServerError, RequestResponse.InternalServerError());
             }
-
-            return Ok(result.Select(x => new Wallet(x.WalletId, x.UserId, null, null, true, x.Label, x.Email, x.Addresses)).FirstOrDefault());
         }
 
         // GET api/v1/reex/getbalance
@@ -73,13 +111,77 @@ namespace Reex.Controllers
         [Route("getbalance/{id}/{email}")]
         public async Task<ActionResult<Balance>> GetBalance(Guid id, string email)
         {
-            if (string.IsNullOrWhiteSpace(email))
+            try
             {
-                return NotFound();
-            }
+                if (string.IsNullOrWhiteSpace(email))
+                {
+                    return NotFound();
+                }
 
-            var result = await walletManagementService.GetBalance(id, email);
-            return Ok(result);
+                if (User.Identity.Name != email)
+                {
+                    return BadRequest(RequestResponse.BadRequest());
+                }
+
+                var result = await walletManagementService.GetBalance(id, email);
+                return Ok(result);
+            }
+            catch(Exception ex)
+            {
+                return StatusCode((int)HttpStatusCode.InternalServerError, RequestResponse.InternalServerError());
+            }
+        }
+
+        // GET api/v1/reex/transactions
+        [HttpGet]
+        [Route("transactions/{id}/{email}/{from}/{count}")]
+        public async Task<ActionResult<TransactionWrapper>> GetTransactions(Guid id, string email, int from = 0, int count = 20)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(email))
+                {
+                    return NotFound();
+                }
+
+                if (User.Identity.Name != email)
+                {
+                    return BadRequest(RequestResponse.BadRequest());
+                }
+
+                var result = await walletManagementService.GetTransactions(id, email, from, count);
+                return Ok(result);
+            }
+            catch(Exception ex)
+            {
+                return StatusCode((int)HttpStatusCode.InternalServerError, RequestResponse.InternalServerError(ex.Message));
+            }
+        }
+
+        // GET api/v1/reex/getinfo
+        [HttpGet]
+        [Route("getInfo")]
+        public async Task<ActionResult<BlockChainInfo>> GetInfo()
+        {
+            try
+            {
+                BlockChainInfo cachedInfo;
+                var cacheKey = $"blockchainInfo";
+                bool doesExists = memoryCache.TryGetValue(cacheKey, out cachedInfo);
+
+                if (!doesExists)
+                {
+                    var result = await walletManagementService.GetInfo();
+                    memoryCache.Set(cacheKey, result, cacheEntryOptions);
+                    return result;
+                }
+
+                return cachedInfo;
+            }
+            catch(Exception ex)
+            {
+                return StatusCode((int)HttpStatusCode.InternalServerError, RequestResponse.InternalServerError());
+            }
         }
 
         // POST api/v1/reex/create
@@ -92,6 +194,11 @@ namespace Reex.Controllers
                 if (string.IsNullOrEmpty(request.Email))
                 {
                     return BadRequest(new ArgumentNullException(nameof(request.Email)).Message);
+                }
+
+                if (User.Identity.Name != request.Email)
+                {
+                    return BadRequest(RequestResponse.BadRequest());
                 }
 
                 var result = await walletManagementService.CreateWallet(request);
@@ -120,6 +227,11 @@ namespace Reex.Controllers
                     return BadRequest(new ArgumentNullException(nameof(request.Label)).Message);
                 }
 
+                if (User.Identity.Name != request.Email)
+                {
+                    return BadRequest(RequestResponse.BadRequest());
+                }
+
                 var result = await walletManagementService.CreateAddress(request);
                 return Ok(result);
             }
@@ -141,19 +253,17 @@ namespace Reex.Controllers
                     return BadRequest();
                 }
 
-                try
+                if (User.Identity.Name != request.Email)
                 {
-                    var result = await walletManagementService.SpendCoins(request);
-                    return Ok(result);
+                    return BadRequest(RequestResponse.BadRequest());
                 }
-                catch (Exception ex)
-                {
-                    return StatusCode((int)HttpStatusCode.InternalServerError, RequestResponse.InternalServerError());
-                }
+
+                var result = await walletManagementService.SpendCoins(request);
+                return Ok(result);
             }
             catch(Exception ex)
             {
-                return StatusCode((int)HttpStatusCode.InternalServerError, RequestResponse.InternalServerError());
+                return StatusCode((int)HttpStatusCode.InternalServerError, RequestResponse.InternalServerError(ex.Message));
             }
         }
 

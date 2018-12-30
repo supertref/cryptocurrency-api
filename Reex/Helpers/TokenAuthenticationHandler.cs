@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Reex.Models.v1.Wallet;
 using Reex.Services.RehiveService;
 
 namespace Reex.Helpers
@@ -43,25 +44,33 @@ namespace Reex.Helpers
                 return AuthenticateResult.Fail("Invalid Authorization Scheme");
             }
 
-            var rehiveTokenResult = await rehiveService.VerifyUser(authHeader.Parameter);
-
-            if (rehiveTokenResult.Status.Equals("success", StringComparison.InvariantCultureIgnoreCase))
+            try
             {
-                var claims = new[]
+                var rehiveTokenResult = await rehiveService.VerifyUser(authHeader.Parameter);
+
+                if (rehiveTokenResult.Status.Equals("success", StringComparison.InvariantCultureIgnoreCase))
                 {
-                    new Claim(ClaimTypes.NameIdentifier, rehiveTokenResult.Data.Email),
-                    new Claim(ClaimTypes.Name, rehiveTokenResult.Data.Email)
-                };
+                    var claims = new[]
+                    {
+                        new Claim(ClaimTypes.NameIdentifier, rehiveTokenResult.Data.Email),
+                        new Claim(ClaimTypes.Name, rehiveTokenResult.Data.Email),
+                        new Claim("ID", rehiveTokenResult.Data.ID.ToString())
+                    };
 
-                var identity = new ClaimsIdentity(claims, Scheme.Name);
-                var principal = new ClaimsPrincipal(identity);
-                var ticket = new AuthenticationTicket(principal, Scheme.Name);
+                    var identity = new ClaimsIdentity(claims, Scheme.Name);
+                    var principal = new ClaimsPrincipal(identity);
+                    var ticket = new AuthenticationTicket(principal, Scheme.Name);
 
-                return AuthenticateResult.Success(ticket);
+                    return AuthenticateResult.Success(ticket);
+                }
+                else
+                {
+                    return AuthenticateResult.Fail($"{rehiveTokenResult.Status} - {rehiveTokenResult.Message}");
+                }
             }
-            else
+            catch(Exception ex)
             {
-                return AuthenticateResult.Fail($"{rehiveTokenResult.Status} - {rehiveTokenResult.Message}");
+                return AuthenticateResult.Fail("An error occurred during verification");
             }
         }
         #endregion
