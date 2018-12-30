@@ -24,7 +24,8 @@ namespace Reex
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
-            
+            services.AddMemoryCache();
+
             // configure token authentication 
             services.AddAuthentication("TokenAuthentication")
                 .AddScheme<AuthenticationSchemeOptions, TokenAuthenticationHandler>("TokenAuthentication", null);

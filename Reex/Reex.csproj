@@ -3,13 +3,17 @@
   <PropertyGroup>
     <TargetFramework>netcoreapp2.1</TargetFramework>
     <UserSecretsId>71e520a1-a300-47f3-a2ea-9ba1f995c483</UserSecretsId>
+    <ApplicationInsightsResourceId>/subscriptions/87c24150-1684-4052-a365-30859a37911e/resourcegroups/reecore-reex-crypto-group/providers/microsoft.insights/components/reecore-reex-api</ApplicationInsightsResourceId>
+    <ApplicationInsightsAnnotationResourceId>/subscriptions/87c24150-1684-4052-a365-30859a37911e/resourcegroups/reecore-reex-crypto-group/providers/microsoft.insights/components/reecore-reex-api</ApplicationInsightsAnnotationResourceId>
   </PropertyGroup>
 
   <ItemGroup>
+    <Folder Include="Properties\PublishProfiles\" />
     <Folder Include="wwwroot\" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" Version="2.1.1" />
     <PackageReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Microsoft.AspNetCore.Razor.Design" Version="2.1.2" PrivateAssets="All" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="2.1.1" />
@@ -18,6 +22,10 @@
   <ItemGroup>
     <ProjectReference Include="..\Reex.Models\Reex.Models.csproj" />
     <ProjectReference Include="..\Reex.Services\Reex.Services.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <WCFMetadata Include="Connected Services" />
   </ItemGroup>
 
 </Project>
