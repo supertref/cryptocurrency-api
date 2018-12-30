@@ -12,6 +12,8 @@ namespace Reex.Services.WalletManagementService
         Task<IList<Wallet>> GetWallets(Guid id, string email);
         Task<IList<Address>> GetAddresses(Guid id);
         Task<Balance> GetBalance(Guid id, string email);
+        Task<TransactionWrapper> GetTransactions(Guid id, string email, int from, int count);
+        Task<BlockChainInfo> GetInfo();
         Task<WalletCreated> CreateWallet(CreateWallet request);
         Task<Address> CreateAddress(CreateWalletAddress request);
         Task<CoinTransfer> SpendCoins(SpendCoins request);

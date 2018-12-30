@@ -2,8 +2,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using NBitcoin;
-using QBitNinja.Client;
+using NBitcoin.RPC;
+using Newtonsoft.Json;
 using Reex.Models.v1.ApiRequest;
 using Reex.Models.v1.Wallet;
 using Reex.Services.CosmosDbService;
@@ -12,16 +14,33 @@ namespace Reex.Services.WalletManagementService
 {
     public class WalletManagementService : IWalletManagementService
     {
+        #region constants
+        private const string SYMBOL = "REEX";
+        #endregion
+
         #region fields
         private readonly Network network;
         private readonly ICosmosDbService cosmosDbService;
+        private readonly string rpcUsername;
+        private readonly string rpcPassword;
+        private readonly string rpcEndpoint;
+        private readonly int rpcMinconf;
+        #endregion
+
+        #region properties
+        public RPCClient rpcClient => 
+            new RPCClient($"{rpcUsername}:{rpcPassword}", rpcEndpoint, network);
         #endregion
 
         #region constructors
-        public WalletManagementService(NBitcoin.Altcoins.Reex instance, ICosmosDbService cosmosDbService)
+        public WalletManagementService(NBitcoin.Altcoins.Reex instance, ICosmosDbService cosmosDbService, IConfiguration configuration)
         {
             network = instance.Mainnet;
             this.cosmosDbService = cosmosDbService;
+            this.rpcUsername = configuration["RPCUsername"];
+            this.rpcPassword = configuration["RPCPassword"];
+            this.rpcEndpoint = configuration["RPCEndpoint"];
+            this.rpcMinconf = int.Parse(configuration["RPCMinconf"] ?? "1");
         }
         #endregion
 
@@ -46,40 +65,48 @@ namespace Reex.Services.WalletManagementService
 
         public async Task<Balance> GetBalance(Guid id, string email)
         {
-            var wallet = await cosmosDbService.GetWallet(id);
-            var reexUri = new Uri("http://123.139.175.122");
-
             try
             {
-                var client = new QBitNinjaClient(reexUri, network);
-                var balanceResult = await client.GetBalance(wallet.Addresses.FirstOrDefault().MyAddress, true);
-                var available_balance = 0.0M;
-                var confirmedBalance = 0.0M;
+                var wallet = await cosmosDbService.GetWallet(id);
 
-                if (balanceResult.Operations.Count > 0)
+                if(wallet is null)
                 {
-                    var unspentCoins = new List<Coin>();
-                    var unspentCoinsConfirmed = new List<Coin>();
-
-                    foreach (var operation in balanceResult.Operations)
-                    {
-                        unspentCoins.AddRange(operation.ReceivedCoins.Select(coin => coin as Coin));
-                        if (operation.Confirmations > 0)
-                            unspentCoinsConfirmed.AddRange(operation.ReceivedCoins.Select(coin => coin as Coin));
-                    }
-
-                    available_balance = unspentCoins.Sum(x => x.Amount.ToDecimal(MoneyUnit.BTC));
-                    confirmedBalance = unspentCoinsConfirmed.Sum(x => x.Amount.ToDecimal(MoneyUnit.BTC));
+                    throw new ArgumentNullException(nameof(wallet));
                 }
 
-                return new Balance(available_balance, confirmedBalance, "REEX", true);
+                var rpcResult = await rpcClient.SendCommandAsync(new RPCRequest("getbalance", new object[] { wallet.WalletId.ToString(), rpcMinconf }));
+                rpcResult.ThrowIfError();
+
+                var balance = JsonConvert.DeserializeObject<decimal>(rpcResult.ResultString);
+                var available_balance = balance;
+                var confirmedBalance = balance;         
+
+                return new Balance(available_balance, confirmedBalance, SYMBOL, true);
             }
             catch(Exception ex)
             {
-                var balance = new Balance(0, 0, "REEX", true);
-                balance.Message = "An error occured when trying to get your balance";
+                var balance = new Balance(0, 0, SYMBOL, true);
+                balance.Status = "error";
+                balance.Message = "An error occured while trying to get your balance";
                 return balance;
             }
+        }
+
+        public async Task<TransactionWrapper> GetTransactions(Guid id, string email, int from, int count)
+        {
+            var wallet = await cosmosDbService.GetWallet(id);
+
+            if (wallet is null)
+            {
+                throw new ArgumentNullException(nameof(wallet));
+            }
+
+            var rpcResult = await rpcClient.SendCommandAsync(new RPCRequest("listtransactions", new object[] { wallet.WalletId.ToString(), count, from }));
+            rpcResult.ThrowIfError();
+
+            var result = JsonConvert.DeserializeObject<IList<Models.v1.Wallet.Transaction>>(rpcResult.ResultString);
+
+            return new TransactionWrapper(result);
         }
 
         public async Task<WalletCreated> CreateWallet(CreateWallet request)
@@ -91,13 +118,24 @@ namespace Reex.Services.WalletManagementService
             var walletLabel = "Main Wallet";
             var addressLabel = "Main Address";
 
+            var address = new Address(Guid.NewGuid(), walletId, reexPublicKey.ToString(), addressLabel);
             var addresses = new List<Address>()
             {
-                new Address(Guid.NewGuid(), walletId, reexPublicKey.ToString(), addressLabel)
+              address
             };
 
             var wallet = new Wallet(walletId, request.Id, reexPrivateKey.ToString(), string.Empty, true, walletLabel, request.Email, addresses);
-            var result = await cosmosDbService.CreateWallet(wallet);
+
+            // import new private key
+            var rpcImportResult = await rpcClient.SendCommandAsync(new RPCRequest("importprivkey", new object[] { wallet.PrivateKey, wallet.UserId.ToString(), true }));
+            rpcImportResult.ThrowIfError();
+
+            // create an account corresponding to the new address key
+            var rpcResult = await rpcClient.SendCommandAsync(new RPCRequest("setaccount", new object[] { address.MyAddress, wallet.WalletId.ToString() }));
+            rpcResult.ThrowIfError();
+
+            // save the data to CosmosDB
+            await cosmosDbService.CreateWallet(wallet);
 
             return new WalletCreated(wallet.WalletId, reexPublicKey.ToString(), addressLabel);
         }
@@ -117,88 +155,40 @@ namespace Reex.Services.WalletManagementService
         public async Task<CoinTransfer> SpendCoins(SpendCoins request)
         {
             var wallet = await cosmosDbService.GetWallet(request.Id);
-            var privateKey = new BitcoinSecret(wallet.PrivateKey);
-            var transaction = Transaction.Create(network);
-            var fromAddress = privateKey.GetAddress().ToString();
+
+            if (wallet is null)
+            {
+                throw new ArgumentNullException(nameof(wallet));
+            }
+
+            if(string.IsNullOrWhiteSpace(request.ToAddress))
+            {
+                throw new ArgumentNullException(nameof(request.ToAddress));
+            }
 
             var addressBalanceResult = await this.GetBalance(request.Id, request.Email);
 
             decimal addressBalance = addressBalanceResult.AvailableBalance;
             decimal addressBalanceConfirmed = addressBalanceResult.ConfirmedBalance;
 
-            if (addressBalanceConfirmed <= request.transferValue)
+            var info = await this.GetInfo();
+            if ((request.transferValue + info.RelayFee) >= addressBalanceConfirmed)
             {
-                throw new Exception("The address doesn't have enough funds!");
+                throw new Exception($"The address doesn't have enough funds! Relay fee {request.transferValue} + {info.RelayFee} = {(request.transferValue + info.RelayFee)}");
             }
 
-            var client = new QBitNinjaClient(network);
-            var balance = await client.GetBalance(new BitcoinPubKeyAddress(fromAddress));
+            var rpcResult = await rpcClient.SendCommandAsync(new RPCRequest("sendfrom", new object[] { wallet.WalletId.ToString(), request.ToAddress, request.transferValue }));
+            rpcResult.ThrowIfError();
 
-            // trx input
-            // Get all transactions in for that address
-            int txsIn = 0;
-            if (balance.Operations.Count > 0)
-            {
-                var unspentCoins = new List<Coin>();
-                foreach (var operation in balance.Operations)
-                {
-                    //string transaction = operation.TransactionId.ToString();
-
-                    foreach (Coin receivedCoin in operation.ReceivedCoins)
-                    {
-                        OutPoint outpointToSpend = receivedCoin.Outpoint;
-                        transaction.Inputs.Add(new TxIn() { PrevOut = outpointToSpend });
-                        transaction.Inputs[txsIn].ScriptSig = privateKey.ScriptPubKey;
-                        txsIn = txsIn + 1;
-                    }
-                }
-            }
-
-            // add address to send money
-            var toPubKeyAddress = new BitcoinPubKeyAddress(request.ToAddress);
-            var toAddressTxOut = new TxOut()
-            {
-                Value = new Money((decimal)request.transferValue, MoneyUnit.BTC),
-                ScriptPubKey = toPubKeyAddress.ScriptPubKey
-            };
-            transaction.Outputs.Add(toAddressTxOut);
-
-            // add address to send change
-            Money change = 
-                new Money((decimal)addressBalance, MoneyUnit.BTC) - new Money((decimal)request.transferValue, MoneyUnit.BTC) - GetMinerFee();
-
-            if (change > 0)
-            {
-                var fromPubKeyAddress = new BitcoinPubKeyAddress(fromAddress);
-
-                TxOut changeAddressTxOut = new TxOut()
-                {
-                    Value = change,
-                    ScriptPubKey = fromPubKeyAddress.ScriptPubKey
-                };
-                transaction.Outputs.Add(changeAddressTxOut);
-            }
-
-            // sign transaction
-            transaction.Sign(privateKey, false);
-
-            // send transaction
-            var broadcastResponse = await client.Broadcast(transaction);
-
-            if (!broadcastResponse.Success)
-            {
-                throw new Exception("Error broadcasting transaction " + broadcastResponse.Error.ErrorCode + " : " + broadcastResponse.Error.Reason);
-            }
-
-            return new CoinTransfer(transaction.GetHash().ToString());
+            return new CoinTransfer();
         }
-        #endregion
 
-        #region private methods
-        private Money GetMinerFee()
+        public async Task<BlockChainInfo> GetInfo()
         {
-            var minerFee = new Money((decimal)0.0001, MoneyUnit.BTC);
-            return minerFee;
+            var rpcResult = await rpcClient.SendCommandAsync(new RPCRequest("getinfo", new object[] { }));
+            rpcResult.ThrowIfError();
+
+            return JsonConvert.DeserializeObject<BlockChainInfo>(rpcResult.ResultString);
         }
         #endregion
     }

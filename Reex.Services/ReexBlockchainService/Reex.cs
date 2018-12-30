@@ -10,33 +10,33 @@ namespace NBitcoin.Altcoins
     {
         public static Reex Instance => new Reex();
 
-        public override string CryptoCode => "DASH";
+        public override string CryptoCode => "REEX";
 
         public Reex()
         {
 
         }
 
-        public class DashConsensusFactory : ConsensusFactory
+        public class ReexConsensusFactory : ConsensusFactory
         {
-            private DashConsensusFactory()
+            private ReexConsensusFactory()
             {
             }
 
-            public static DashConsensusFactory Instance { get; } = new DashConsensusFactory();
+            public static ReexConsensusFactory Instance { get; } = new ReexConsensusFactory();
 
             public override BlockHeader CreateBlockHeader()
             {
-                return new DashBlockHeader();
+                return new ReexBlockHeader();
             }
             public override Block CreateBlock()
             {
-                return new ReexBlock(new DashBlockHeader());
+                return new ReexBlock(new ReexBlockHeader());
             }
         }
 
 #pragma warning disable CS0618 // Type or member is obsolete
-        public class DashBlockHeader : BlockHeader
+        public class ReexBlockHeader : BlockHeader
         {
             // https://github.com/dashpay/dash/blob/e596762ca22d703a79c6880a9d3edb1c7c972fd3/src/primitives/block.cpp#L13
             static byte[] CalculateHash(byte[] data, int offset, int count)
@@ -53,7 +53,7 @@ namespace NBitcoin.Altcoins
         public class ReexBlock : Block
         {
 #pragma warning disable CS0612 // Type or member is obsolete
-            public ReexBlock(DashBlockHeader h) : base(h)
+            public ReexBlock(ReexBlockHeader h) : base(h)
 #pragma warning restore CS0612 // Type or member is obsolete
             {
 
@@ -67,7 +67,7 @@ namespace NBitcoin.Altcoins
 
         protected override void PostInit()
         {
-            RegisterDefaultCookiePath("DashCore");
+            RegisterDefaultCookiePath("ReexCore");
         }
 
         static uint256 GetPoWHash(BlockHeader header)
@@ -96,7 +96,7 @@ namespace NBitcoin.Altcoins
                 PowNoRetargeting = false,
                 RuleChangeActivationThreshold = 1916,
                 MinerConfirmationWindow = 2016,
-                ConsensusFactory = DashConsensusFactory.Instance,
+                ConsensusFactory = ReexConsensusFactory.Instance,
                 SupportSegwit = true
             })
             .SetBase58Bytes(Base58Type.PUBKEY_ADDRESS, new byte[] { 61 })
@@ -104,14 +104,14 @@ namespace NBitcoin.Altcoins
             .SetBase58Bytes(Base58Type.SECRET_KEY, new byte[] { 189 })
             .SetBase58Bytes(Base58Type.EXT_PUBLIC_KEY, new byte[] { 0x04, 0x88, 0xB2, 0x1E })
             .SetBase58Bytes(Base58Type.EXT_SECRET_KEY, new byte[] { 0x04, 0x88, 0xAD, 0xE4 })
-            .SetBech32(Bech32Type.WITNESS_PUBKEY_ADDRESS, Encoders.Bech32("dash"))
-            .SetBech32(Bech32Type.WITNESS_SCRIPT_ADDRESS, Encoders.Bech32("dash"))
+            .SetBech32(Bech32Type.WITNESS_PUBKEY_ADDRESS, Encoders.Bech32("reex"))
+            .SetBech32(Bech32Type.WITNESS_SCRIPT_ADDRESS, Encoders.Bech32("reex"))
             .SetMagic(0xBD6B0CBF)
             .SetPort(43210)
             .SetRPCPort(9998)
             .SetMaxP2PVersion(70208)
-            .SetName("dash-main")
-            .AddAlias("dash-mainnet")
+            .SetName("reex-main")
+            .AddAlias("reex-mainnet")
             .AddDNSSeeds(new[]
             {
                 new DNSSeedData("173.249.1.107", "173.249.1.107"),
@@ -120,7 +120,7 @@ namespace NBitcoin.Altcoins
                 new DNSSeedData("35.231.79.133", "35.231.79.133")
             })
             .AddSeeds(new NetworkAddress[0])
-            .SetGenesis("0x00000c1b8abb8755561c46ea298cf725c940ca71409f7024bc3ad82fdb1bdc7f");
+            .SetGenesis("0000047d24635e347be3aaaeb66c26be94901a2f962feccd4f95090191f208c1");
             return builder;
         }
 
@@ -143,7 +143,7 @@ namespace NBitcoin.Altcoins
                 PowNoRetargeting = false,
                 RuleChangeActivationThreshold = 1512,
                 MinerConfirmationWindow = 2016,
-                ConsensusFactory = DashConsensusFactory.Instance,
+                ConsensusFactory = ReexConsensusFactory.Instance,
                 SupportSegwit = true
             })
             .SetBase58Bytes(Base58Type.PUBKEY_ADDRESS, new byte[] { 48 })
@@ -151,21 +151,21 @@ namespace NBitcoin.Altcoins
             .SetBase58Bytes(Base58Type.SECRET_KEY, new byte[] { 108 })
             .SetBase58Bytes(Base58Type.EXT_PUBLIC_KEY, new byte[] { 0x04, 0x35, 0x87, 0xCF })
             .SetBase58Bytes(Base58Type.EXT_SECRET_KEY, new byte[] { 0x04, 0x35, 0x83, 0x94 })
-            .SetBech32(Bech32Type.WITNESS_PUBKEY_ADDRESS, Encoders.Bech32("tdash"))
-            .SetBech32(Bech32Type.WITNESS_SCRIPT_ADDRESS, Encoders.Bech32("tdash"))
+            .SetBech32(Bech32Type.WITNESS_PUBKEY_ADDRESS, Encoders.Bech32("treex"))
+            .SetBech32(Bech32Type.WITNESS_SCRIPT_ADDRESS, Encoders.Bech32("treex"))
             .SetMagic(0xFFCAE2CE)
             .SetPort(15551)
             .SetRPCPort(19998)
             .SetMaxP2PVersion(70208)
-           .SetName("dash-test")
-           .AddAlias("dash-testnet")
+           .SetName("reex-test")
+           .AddAlias("reex-testnet")
            .AddDNSSeeds(new[]
            {
                 new DNSSeedData("173.249.1.107",  "173.249.1.107"),
                 //new DNSSeedData("masternode.io", "test.dnsseed.masternode.io")
            })
            .AddSeeds(new NetworkAddress[0])
-           .SetGenesis("0x06b942b8b7f0e05ea38e7871a0db70f71592cfb016ee0ae7d5988f9fea840201");
+           .SetGenesis("0000047d24635e347be3aaaeb66c26be94901a2f962feccd4f95090191f208c1");
             return builder;
         }
 
@@ -188,7 +188,7 @@ namespace NBitcoin.Altcoins
                 PowNoRetargeting = true,
                 RuleChangeActivationThreshold = 108,
                 MinerConfirmationWindow = 144,
-                ConsensusFactory = DashConsensusFactory.Instance,
+                ConsensusFactory = ReexConsensusFactory.Instance,
                 SupportSegwit = false
             })
             .SetBase58Bytes(Base58Type.PUBKEY_ADDRESS, new byte[] { 140 })
@@ -196,17 +196,17 @@ namespace NBitcoin.Altcoins
             .SetBase58Bytes(Base58Type.SECRET_KEY, new byte[] { 239 })
             .SetBase58Bytes(Base58Type.EXT_PUBLIC_KEY, new byte[] { 0x04, 0x35, 0x87, 0xCF })
             .SetBase58Bytes(Base58Type.EXT_SECRET_KEY, new byte[] { 0x04, 0x35, 0x83, 0x94 })
-            .SetBech32(Bech32Type.WITNESS_PUBKEY_ADDRESS, Encoders.Bech32("tdash"))
-            .SetBech32(Bech32Type.WITNESS_SCRIPT_ADDRESS, Encoders.Bech32("tdash"))
+            .SetBech32(Bech32Type.WITNESS_PUBKEY_ADDRESS, Encoders.Bech32("treex"))
+            .SetBech32(Bech32Type.WITNESS_SCRIPT_ADDRESS, Encoders.Bech32("treex"))
             .SetMagic(0xDCB7C1FC)
             .SetPort(19994)
             .SetRPCPort(19993)
             .SetMaxP2PVersion(70208)
-            .SetName("dash-reg")
-            .AddAlias("dash-regtest")
+            .SetName("reex-reg")
+            .AddAlias("reex-regtest")
             .AddDNSSeeds(new DNSSeedData[0])
             .AddSeeds(new NetworkAddress[0])
-            .SetGenesis("010000000000000000000000000000000000000000000000000000000000000000000000c762a6567f3cc092f0684bb62b7e00a84890b990f07cc71a6bb58d64b98e02e0b9968054ffff7f20ffba10000101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff6204ffff001d01044c5957697265642030392f4a616e2f3230313420546865204772616e64204578706572696d656e7420476f6573204c6976653a204f76657273746f636b2e636f6d204973204e6f7720416363657074696e6720426974636f696e73ffffffff0100f2052a010000004341040184710fa689ad5023690c80f3a49c8f13f8d45b8c857fbcbc8bc4a8e4d3eb4b10f4d4604fa08dce601aaf0f470216fe1b51850b4acf21b179c45070ac7b03a9ac00000000");
+            .SetGenesis("0000047d24635e347be3aaaeb66c26be94901a2f962feccd4f95090191f208c1");
             return builder;
         }
     }
