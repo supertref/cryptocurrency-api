@@ -43,7 +43,7 @@ namespace Reex.Controllers
         {
             try
             {
-                if (string.IsNullOrEmpty(email))
+                if (string.IsNullOrWhiteSpace(email))
                 {
                     return NotFound(RequestResponse.NotFound());
                 }
@@ -81,7 +81,7 @@ namespace Reex.Controllers
         {
             try
             {
-                if (string.IsNullOrEmpty(email))
+                if (string.IsNullOrWhiteSpace(email))
                 {
                     return NotFound(RequestResponse.NotFound());
                 }

@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using NBitcoin;
 using NBitcoin.RPC;
 using Newtonsoft.Json;
+using Reex.Models.v1;
 using Reex.Models.v1.ApiRequest;
 using Reex.Models.v1.Wallet;
 using Reex.Services.CosmosDbService;
@@ -74,7 +75,7 @@ namespace Reex.Services.WalletManagementService
                     throw new ArgumentNullException(nameof(wallet));
                 }
 
-                var rpcResult = await rpcClient.SendCommandAsync(new RPCRequest("getbalance", new object[] { wallet.WalletId.ToString(), rpcMinconf }));
+                var rpcResult = await rpcClient.SendCommandAsync(new RPCRequest(RPCOperations.getbalance, new object[] { wallet.WalletId.ToString(), rpcMinconf }));
                 rpcResult.ThrowIfError();
 
                 var balance = JsonConvert.DeserializeObject<decimal>(rpcResult.ResultString);
@@ -83,7 +84,7 @@ namespace Reex.Services.WalletManagementService
 
                 return new Balance(available_balance, confirmedBalance, SYMBOL, true);
             }
-            catch(Exception ex)
+            catch(Exception)
             {
                 var balance = new Balance(0, 0, SYMBOL, true);
                 balance.Status = "error";
@@ -101,7 +102,7 @@ namespace Reex.Services.WalletManagementService
                 throw new ArgumentNullException(nameof(wallet));
             }
 
-            var rpcResult = await rpcClient.SendCommandAsync(new RPCRequest("listtransactions", new object[] { wallet.WalletId.ToString(), count, from }));
+            var rpcResult = await rpcClient.SendCommandAsync(new RPCRequest(RPCOperations.listtransactions, new object[] { wallet.WalletId.ToString(), count, from }));
             rpcResult.ThrowIfError();
 
             var result = JsonConvert.DeserializeObject<IList<Models.v1.Wallet.Transaction>>(rpcResult.ResultString);
@@ -127,11 +128,11 @@ namespace Reex.Services.WalletManagementService
             var wallet = new Wallet(walletId, request.Id, reexPrivateKey.ToString(), string.Empty, true, walletLabel, request.Email, addresses);
 
             // import new private key
-            var rpcImportResult = await rpcClient.SendCommandAsync(new RPCRequest("importprivkey", new object[] { wallet.PrivateKey, wallet.UserId.ToString(), true }));
+            var rpcImportResult = await rpcClient.SendCommandAsync(new RPCRequest(RPCOperations.importprivkey, new object[] { wallet.PrivateKey, wallet.UserId.ToString(), true }));
             rpcImportResult.ThrowIfError();
 
             // create an account corresponding to the new address key
-            var rpcResult = await rpcClient.SendCommandAsync(new RPCRequest("setaccount", new object[] { address.MyAddress, wallet.WalletId.ToString() }));
+            var rpcResult = await rpcClient.SendCommandAsync(new RPCRequest(RPCOperations.setaccount, new object[] { address.MyAddress, wallet.WalletId.ToString() }));
             rpcResult.ThrowIfError();
 
             // save the data to CosmosDB
@@ -174,10 +175,10 @@ namespace Reex.Services.WalletManagementService
             var info = await this.GetInfo();
             if ((request.transferValue + info.RelayFee) >= addressBalanceConfirmed)
             {
-                throw new Exception($"The address doesn't have enough funds! Relay fee {request.transferValue} + {info.RelayFee} = {(request.transferValue + info.RelayFee)}");
+                throw new Exception($"The address doesn't have enough funds! Relay fee {info.RelayFee} + {request.transferValue} = {(request.transferValue + info.RelayFee)}");
             }
 
-            var rpcResult = await rpcClient.SendCommandAsync(new RPCRequest("sendfrom", new object[] { wallet.WalletId.ToString(), request.ToAddress, request.transferValue }));
+            var rpcResult = await rpcClient.SendCommandAsync(new RPCRequest(RPCOperations.sendfrom, new object[] { wallet.WalletId.ToString(), request.ToAddress, request.transferValue }));
             rpcResult.ThrowIfError();
 
             return new CoinTransfer();
@@ -185,7 +186,7 @@ namespace Reex.Services.WalletManagementService
 
         public async Task<BlockChainInfo> GetInfo()
         {
-            var rpcResult = await rpcClient.SendCommandAsync(new RPCRequest("getinfo", new object[] { }));
+            var rpcResult = await rpcClient.SendCommandAsync(new RPCRequest(RPCOperations.getinfo, new object[] { }));
             rpcResult.ThrowIfError();
 
             return JsonConvert.DeserializeObject<BlockChainInfo>(rpcResult.ResultString);
