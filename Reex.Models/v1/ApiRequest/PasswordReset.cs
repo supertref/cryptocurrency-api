@@ -1,10 +1,10 @@
-﻿using System;
+﻿using Newtonsoft.Json;
 
 namespace Reex.Models.v1.ApiRequest
 {
-    public class CreateWallet
+    public class PasswordReset
     {
-        public string Id { get; set; }
+        [JsonProperty("email")]
         public string Email { get; set; }
     }
 }

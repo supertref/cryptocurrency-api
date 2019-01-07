@@ -6,10 +6,9 @@ using Microsoft.Extensions.Configuration;
 using NBitcoin;
 using NBitcoin.RPC;
 using Newtonsoft.Json;
-using Reex.Models.v1;
 using Reex.Models.v1.ApiRequest;
 using Reex.Models.v1.Wallet;
-using Reex.Services.CosmosDbService;
+using Reex.Services.FirebaseService;
 
 namespace Reex.Services.WalletManagementService
 {
@@ -21,7 +20,7 @@ namespace Reex.Services.WalletManagementService
 
         #region fields
         private readonly Network network;
-        private readonly ICosmosDbService cosmosDbService;
+        private readonly IFirebaseDbService firebaseDbService;
         private readonly string rpcUsername;
         private readonly string rpcPassword;
         private readonly string rpcEndpoint;
@@ -34,10 +33,10 @@ namespace Reex.Services.WalletManagementService
         #endregion
 
         #region constructors
-        public WalletManagementService(NBitcoin.Altcoins.Reex instance, ICosmosDbService cosmosDbService, IConfiguration configuration)
+        public WalletManagementService(NBitcoin.Altcoins.Reex instance, IFirebaseDbService firebaseDbService, IConfiguration configuration)
         {
             network = instance.Mainnet;
-            this.cosmosDbService = cosmosDbService;
+            this.firebaseDbService = firebaseDbService;
             this.rpcUsername = configuration["RPCUsername"];
             this.rpcPassword = configuration["RPCPassword"];
             this.rpcEndpoint = configuration["RPCEndpoint"];
@@ -46,21 +45,21 @@ namespace Reex.Services.WalletManagementService
         #endregion
 
         #region public methods
-        public async Task<IList<Wallet>> GetWallets(Guid id, string email)
+        public async Task<IList<Wallet>> GetWallets(string id, string email)
         {
-            var wallets = await cosmosDbService.GetWallets(id);
+            var wallets = await firebaseDbService.GetWallets(id);
             return wallets;
         }
 
         public async Task<Wallet> GetWallet(Guid id, string email)
         {
-            var wallet = await cosmosDbService.GetWallet(id);
+            var wallet = await firebaseDbService.GetWallet(id);
             return wallet;
         }
 
         public async Task<IList<Address>> GetAddresses(Guid id)
         {
-            var wallet = await cosmosDbService.GetWallet(id);
+            var wallet = await firebaseDbService.GetWallet(id);
             return wallet.Addresses.Where(x => x.WalletId == id).ToList();
         }
 
@@ -68,7 +67,7 @@ namespace Reex.Services.WalletManagementService
         {
             try
             {
-                var wallet = await cosmosDbService.GetWallet(id);
+                var wallet = await firebaseDbService.GetWallet(id);
 
                 if(wallet is null)
                 {
@@ -95,7 +94,7 @@ namespace Reex.Services.WalletManagementService
 
         public async Task<TransactionWrapper> GetTransactions(Guid id, string email, int from, int count)
         {
-            var wallet = await cosmosDbService.GetWallet(id);
+            var wallet = await firebaseDbService.GetWallet(id);
 
             if (wallet is null)
             {
@@ -136,26 +135,34 @@ namespace Reex.Services.WalletManagementService
             rpcResult.ThrowIfError();
 
             // save the data to CosmosDB
-            await cosmosDbService.CreateWallet(wallet);
+            await firebaseDbService.CreateWallet(wallet);
 
             return new WalletCreated(wallet.WalletId, reexPublicKey.ToString(), addressLabel);
         }
 
         public async Task<Address> CreateAddress(CreateWalletAddress request)
         {
-            var wallet = await cosmosDbService.GetWallet(request.Id);
+            var wallet = await firebaseDbService.GetWallet(request.Id);
             var privateKey = new BitcoinSecret(wallet.PrivateKey);
             var extKey = new ExtKey(privateKey.PubKey.ToHex());
             var newAddress = new Address(Guid.NewGuid(), wallet.WalletId, extKey.PrivateKey.PubKey.GetAddress(network).ToString(), request.Label);
             wallet.Addresses.Add(newAddress);
-            var updateWallet = await cosmosDbService.UpdateWallet(wallet);
+
+            var walletKey = await firebaseDbService.GetWalletKey(request.Id);
+
+            if(string.IsNullOrWhiteSpace(walletKey))
+            {
+                throw new InvalidOperationException("Could not get the wallet you are looking for.");
+            }
+
+            var updateWallet = await firebaseDbService.UpdateWallet(walletKey, wallet);
 
             return newAddress;
         }
 
         public async Task<CoinTransfer> SpendCoins(SpendCoins request)
         {
-            var wallet = await cosmosDbService.GetWallet(request.Id);
+            var wallet = await firebaseDbService.GetWallet(request.Id);
 
             if (wallet is null)
             {

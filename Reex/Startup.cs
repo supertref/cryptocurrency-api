@@ -5,8 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Reex.Helpers;
-using Reex.Services.CosmosDbService;
-using Reex.Services.RehiveService;
+using Reex.Services.FirebaseService;
 using Reex.Services.WalletManagementService;
 
 namespace Reex
@@ -33,8 +32,8 @@ namespace Reex
             services.AddSingleton<IConfiguration>(Configuration);
             services.AddSingleton<NBitcoin.Altcoins.Reex>();
             services.AddScoped<IWalletManagementService, WalletManagementService>();
-            services.AddScoped<IRehiveService, RehiveService>();
-            services.AddScoped<ICosmosDbService, CosmosDbService>();
+            services.AddScoped<IFirebaseAuthService, FirebaseAuthService>();
+            services.AddScoped<IFirebaseDbService, FirebaseDbService>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

@@ -16,7 +16,6 @@ namespace Reex
                 .UseKestrel()
                 .UseContentRoot(Directory.GetCurrentDirectory())
                 .UseIISIntegration()
-                .UseApplicationInsights()
                 .UseStartup<Startup>();
     }
 }

@@ -6,15 +6,15 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Reex.Models.v1.Wallet;
-using Reex.Services.RehiveService;
+using Reex.Models.v1;
+using Reex.Services.FirebaseService;
 
 namespace Reex.Helpers
 {
     public class TokenAuthenticationHandler : AuthenticationHandler<AuthenticationSchemeOptions>
     {
         #region fields
-        private readonly IRehiveService rehiveService;
+        private readonly IFirebaseAuthService firebaseAuthService;
         #endregion
 
         #region constructors
@@ -23,9 +23,9 @@ namespace Reex.Helpers
             ILoggerFactory logger,
             UrlEncoder encoder,
             ISystemClock clock,
-            IRehiveService rehiveService) : base(options, logger, encoder, clock)
+            IFirebaseAuthService firebaseAuthService) : base(options, logger, encoder, clock)
         {
-            this.rehiveService = rehiveService;
+            this.firebaseAuthService = firebaseAuthService;
         }
         #endregion
 
@@ -46,15 +46,15 @@ namespace Reex.Helpers
 
             try
             {
-                var rehiveTokenResult = await rehiveService.VerifyUser(authHeader.Parameter);
+                var user = await firebaseAuthService.GetUser(authHeader.Parameter);
 
-                if (rehiveTokenResult.Status.Equals("success", StringComparison.InvariantCultureIgnoreCase))
+                if (!string.IsNullOrWhiteSpace(user?.Email) || !string.IsNullOrWhiteSpace(user?.UserId))
                 {
                     var claims = new[]
                     {
-                        new Claim(ClaimTypes.NameIdentifier, rehiveTokenResult.Data.Email),
-                        new Claim(ClaimTypes.Name, rehiveTokenResult.Data.Email),
-                        new Claim("ID", rehiveTokenResult.Data.ID.ToString())
+                        new Claim(ClaimTypes.NameIdentifier, user.Email),
+                        new Claim(ClaimTypes.Name, user.Email),
+                        new Claim(CustomClaims.USER_ID, user.UserId.ToString())
                     };
 
                     var identity = new ClaimsIdentity(claims, Scheme.Name);
@@ -65,7 +65,7 @@ namespace Reex.Helpers
                 }
                 else
                 {
-                    return AuthenticateResult.Fail($"{rehiveTokenResult.Status} - {rehiveTokenResult.Message}");
+                    return AuthenticateResult.Fail("error - invalid token provided");
                 }
             }
             catch(Exception ex)

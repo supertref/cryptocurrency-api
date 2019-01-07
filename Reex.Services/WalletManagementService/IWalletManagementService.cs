@@ -9,7 +9,7 @@ namespace Reex.Services.WalletManagementService
     public interface IWalletManagementService
     {
         Task<Wallet> GetWallet(Guid id, string email);
-        Task<IList<Wallet>> GetWallets(Guid id, string email);
+        Task<IList<Wallet>> GetWallets(string id, string email);
         Task<IList<Address>> GetAddresses(Guid id);
         Task<Balance> GetBalance(Guid id, string email);
         Task<TransactionWrapper> GetTransactions(Guid id, string email, int from, int count);

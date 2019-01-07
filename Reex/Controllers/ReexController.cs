@@ -5,14 +5,11 @@ using Microsoft.Extensions.Configuration;
 using Reex.Models.v1.ApiRequest;
 using Reex.Models.v1.ApiResponse;
 using Reex.Models.v1.Wallet;
-using Reex.Services.RehiveService;
 using Reex.Services.WalletManagementService;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using System.Net.Http.Headers;
-using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace Reex.Controllers
@@ -22,20 +19,23 @@ namespace Reex.Controllers
     [ApiController]
     public class ReexController : ControllerBase
     {
+        #region fields
         private readonly IWalletManagementService walletManagementService;
-        private readonly IRehiveService rehiveService;
         private readonly IMemoryCache memoryCache;
         private readonly MemoryCacheEntryOptions cacheEntryOptions;
+        #endregion
 
-        public ReexController(IWalletManagementService walletManagementService, IRehiveService rehiveService, IMemoryCache memoryCache, IConfiguration configuration)
+        #region constructors
+        public ReexController(IWalletManagementService walletManagementService, IMemoryCache memoryCache, IConfiguration configuration)
         {
             this.walletManagementService = walletManagementService;
-            this.rehiveService = rehiveService;
             this.memoryCache = memoryCache;
             this.cacheEntryOptions = new MemoryCacheEntryOptions()
                 .SetAbsoluteExpiration(TimeSpan.FromMinutes(int.Parse(configuration["CacheExpiryInMinutes"] ?? "60")));
         }
+        #endregion
 
+        #region actions
         // GET api/v1/reex/wallet
         [HttpGet]
         [Route("wallet/{id}/{email}")]
@@ -46,12 +46,6 @@ namespace Reex.Controllers
                 if (string.IsNullOrWhiteSpace(email))
                 {
                     return NotFound(RequestResponse.NotFound());
-                }
-
-                var identity = User.Identity as ClaimsIdentity;
-                if (identity is null || identity.Claims.Where(x => x.Type == "ID" && x.Value.ToLower() == id.ToString().ToLower()).FirstOrDefault() is null)
-                {
-                    return BadRequest(RequestResponse.BadRequest());
                 }
 
                 if (User.Identity.Name != email)
@@ -77,11 +71,11 @@ namespace Reex.Controllers
         // GET api/v1/reex/wallets
         [HttpGet]
         [Route("wallets/{id}/{email}")]
-        public async Task<ActionResult<Wallet>> GetWallets(Guid id, string email)
+        public async Task<ActionResult<Wallet>> GetWallets(string id, string email)
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(email))
+                if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(id))
                 {
                     return NotFound(RequestResponse.NotFound());
                 }
@@ -126,7 +120,7 @@ namespace Reex.Controllers
                 var result = await walletManagementService.GetBalance(id, email);
                 return Ok(result);
             }
-            catch(Exception ex)
+            catch(Exception)
             {
                 return StatusCode((int)HttpStatusCode.InternalServerError, RequestResponse.InternalServerError());
             }
@@ -178,7 +172,7 @@ namespace Reex.Controllers
 
                 return cachedInfo;
             }
-            catch(Exception ex)
+            catch(Exception)
             {
                 return StatusCode((int)HttpStatusCode.InternalServerError, RequestResponse.InternalServerError());
             }
@@ -204,7 +198,7 @@ namespace Reex.Controllers
                 var result = await walletManagementService.CreateWallet(request);
                 return Ok(result);
             }
-            catch(Exception ex)
+            catch(Exception)
             {
                 return StatusCode((int)HttpStatusCode.InternalServerError, RequestResponse.InternalServerError());
             }
@@ -235,7 +229,7 @@ namespace Reex.Controllers
                 var result = await walletManagementService.CreateAddress(request);
                 return Ok(result);
             }
-            catch(Exception ex)
+            catch(Exception)
             {
                 return StatusCode((int)HttpStatusCode.InternalServerError, RequestResponse.InternalServerError());
             }
@@ -266,30 +260,6 @@ namespace Reex.Controllers
                 return StatusCode((int)HttpStatusCode.InternalServerError, RequestResponse.InternalServerError(ex.Message));
             }
         }
-
-        // POST api/v1/reex/auth/verify/mfa/{code}
-        [AllowAnonymous]
-        [HttpPost]
-        [Route("auth/verify/mfa/{code}")]
-        public async Task<ActionResult> VerifyTwoFactorAuth(int code)
-        {
-            try
-            {
-                var header = AuthenticationHeaderValue.Parse(Request.Headers["Authorization"]);
-
-                if (header is null)
-                {
-                    return BadRequest("Invalid mfa Code");
-                }
-
-                var result = await rehiveService.VerifyTwoFactor(code, header.Parameter);
-
-                return Ok(result.Status);
-            }
-            catch(Exception ex)
-            {
-                return StatusCode((int)HttpStatusCode.InternalServerError, RequestResponse.InternalServerError());
-            }
-        }
+        #endregion
     }
 }

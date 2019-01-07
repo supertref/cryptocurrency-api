@@ -16,14 +16,14 @@ namespace Reex.Models.v1.Wallet
         /// Initialise a new Wallet
         /// </summary>
         /// <param name="Id">Guid</param>
-        /// <param name="userId">Guid</param>
+        /// <param name="userId">string</param>
         /// <param name="privateKey">string</param>
         /// <param name="mnemo">string</param>
         /// <param name="isEncrypted">bool</param>
         /// <param name="label">string</param>
         /// <param name="email">string</param>
         /// <param name="addresses">IList<Address></param>
-        public Wallet(Guid Id, Guid userId, string privateKey, string mnemo, bool isEncrypted, string label, string email, IList<Address> addresses)
+        public Wallet(Guid Id, string userId, string privateKey, string mnemo, bool isEncrypted, string label, string email, IList<Address> addresses)
             : base(SUCCESS, null)
         {
             this.WalletId = Id;
@@ -41,7 +41,7 @@ namespace Reex.Models.v1.Wallet
         [JsonProperty("walletId")]
         public Guid WalletId { get; set; }
         [JsonProperty("userId")]
-        public Guid UserId { get; set; }
+        public string UserId { get; set; }
         [JsonProperty("privateKey")]
         public string PrivateKey { get; set; }
         [JsonProperty("mnemonicCode")]
