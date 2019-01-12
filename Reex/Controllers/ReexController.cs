@@ -2,15 +2,18 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
+using Reex.Models.v1;
 using Reex.Models.v1.ApiRequest;
 using Reex.Models.v1.ApiResponse;
 using Reex.Models.v1.Wallet;
+using Reex.Services.FirebaseService;
 using Reex.Services.WalletManagementService;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
+using TwoFactorAuthNet;
 
 namespace Reex.Controllers
 {
@@ -23,15 +26,21 @@ namespace Reex.Controllers
         private readonly IWalletManagementService walletManagementService;
         private readonly IMemoryCache memoryCache;
         private readonly MemoryCacheEntryOptions cacheEntryOptions;
+        private readonly IFirebaseDbService firebaseDbService;
+        private readonly TwoFactorAuth twoFactorAuth;
+        private readonly string issuer;
         #endregion
 
         #region constructors
-        public ReexController(IWalletManagementService walletManagementService, IMemoryCache memoryCache, IConfiguration configuration)
+        public ReexController(IWalletManagementService walletManagementService, IMemoryCache memoryCache, IConfiguration configuration, IFirebaseDbService firebaseDbService)
         {
             this.walletManagementService = walletManagementService;
             this.memoryCache = memoryCache;
             this.cacheEntryOptions = new MemoryCacheEntryOptions()
                 .SetAbsoluteExpiration(TimeSpan.FromMinutes(int.Parse(configuration["CacheExpiryInMinutes"] ?? "60")));
+            this.firebaseDbService = firebaseDbService;
+            this.issuer = configuration["MyCompany"];
+            this.twoFactorAuth = new TwoFactorAuth(issuer);
         }
         #endregion
 
@@ -244,12 +253,12 @@ namespace Reex.Controllers
             {
                 if (request is null || string.IsNullOrEmpty(request.ToAddress))
                 {
-                    return BadRequest();
+                    return BadRequest("Invalid request.");
                 }
 
                 if (User.Identity.Name != request.Email)
                 {
-                    return BadRequest(RequestResponse.BadRequest());
+                    return BadRequest(RequestResponse.BadRequest("Invalid request. Please try again."));
                 }
 
                 var result = await walletManagementService.SpendCoins(request);
@@ -258,6 +267,62 @@ namespace Reex.Controllers
             catch(Exception ex)
             {
                 return StatusCode((int)HttpStatusCode.InternalServerError, RequestResponse.InternalServerError(ex.Message));
+            }
+        }
+
+        // POST/api/v1/reex/exportPrivKey
+        [HttpPost]
+        [Route("exportPrivKey")]
+        public async Task<ActionResult<ApiResponse<ExportPrivateKey>>> ExportPrivKey([FromBody] VerifyMfa mfaEnable)
+        {
+            try
+            {
+                if (mfaEnable is null || string.IsNullOrWhiteSpace(mfaEnable.MfaCode))
+                {
+                    return BadRequest(RequestResponse.BadRequest("Mfa code is required in order to export your private key."));
+                }
+
+                var userName = User?.Identity?.Name;
+                var userId = User?.Claims.Where(x => x.Type == CustomClaims.USER_ID).FirstOrDefault()?.Value;
+
+                if (string.IsNullOrWhiteSpace(userName) || string.IsNullOrWhiteSpace(userId))
+                {
+                    return BadRequest(RequestResponse.BadRequest("Something went wrong trying to validate your request."));
+                }
+
+                var userProperties = await firebaseDbService.GetUserProperties(userId);
+
+                if (userProperties is null)
+                {
+                    return NotFound(RequestResponse.NotFound("Error trying to find your Mfa data. Please try again."));
+                }
+
+                if (!userProperties.IsMfaEnabled)
+                {
+                    return BadRequest(RequestResponse.BadRequest("You must first enable Mfa in order to use this function."));
+                }
+
+                var verified = twoFactorAuth.VerifyCode(userProperties.Secret, mfaEnable.MfaCode);
+
+                if (!verified)
+                {
+                    return BadRequest(RequestResponse.BadRequest("Invalid Mfa code provided. Please try again."));
+                }
+
+                var result = await walletManagementService.GetWallets(userId, userName);
+
+                if (!result.Any())
+                {
+                    return NotFound(RequestResponse.NotFound($"No wallets found."));
+                }
+
+                var wallet = result.FirstOrDefault();
+                var exportPrivKey = new ExportPrivateKey(wallet.PrivateKey, wallet.Addresses.FirstOrDefault()?.MyAddress);
+                return Ok(new ApiResponse<ExportPrivateKey>(exportPrivKey));
+            }
+            catch(Exception)
+            {
+                return BadRequest(RequestResponse.BadRequest("Something went wrong trying to export you private key."));
             }
         }
         #endregion

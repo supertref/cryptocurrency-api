@@ -8,6 +8,7 @@ using Reex.Models.v1.ApiResponse;
 using Reex.Services.FirebaseService;
 using System;
 using System.Linq;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using TwoFactorAuthNet;
@@ -60,7 +61,7 @@ namespace Reex.Controllers
             }
             catch(Exception)
             {
-                return BadRequest(RequestResponse.BadRequest("Something went wrong trying to login."));
+                return StatusCode((int)HttpStatusCode.Unauthorized, RequestResponse.BadRequest(string.Empty));
             }
         }
 
@@ -316,7 +317,7 @@ namespace Reex.Controllers
             }
         }
 
-        // GET api/v1/account/getUser/{token}
+        // GET api/v1/account/getUser
         [HttpGet]
         [Route("getUser")]
         public async Task<ActionResult<ApiResponse<UserDetail>>> GetUserDetail()
