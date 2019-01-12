@@ -29,6 +29,7 @@ namespace Reex.Controllers
         private readonly IMemoryCache memoryCache;
         private readonly MemoryCacheEntryOptions cacheEntryOptions;
         private readonly TwoFactorAuth twoFactorAuth;
+        private readonly string issuer;
         #endregion
 
         #region constructors
@@ -39,7 +40,8 @@ namespace Reex.Controllers
             this.memoryCache = memoryCache;
             this.cacheEntryOptions = new MemoryCacheEntryOptions()
                 .SetAbsoluteExpiration(TimeSpan.FromMinutes(int.Parse(configuration["CacheExpiryInMinutes"] ?? "60")));
-            this.twoFactorAuth = new TwoFactorAuth(configuration["MyCompany"]);
+            this.issuer = configuration["MyCompany"];
+            this.twoFactorAuth = new TwoFactorAuth(issuer);
         }
         #endregion
 
@@ -89,7 +91,7 @@ namespace Reex.Controllers
         [AllowAnonymous]
         [HttpPost]
         [Route("resetPassword")]
-        public async Task<ActionResult> ResetPassword([FromBody] PasswordReset passwordReset)
+        public async Task<ActionResult<RequestResponse>> ResetPassword([FromBody] PasswordReset passwordReset)
         {
             try
             {
@@ -100,7 +102,7 @@ namespace Reex.Controllers
 
                 await firebaseAuthService.SendPasswordResetEmail(passwordReset.Email);
 
-                return Ok();
+                return Ok(RequestResponse.Success());
             }
             catch(Exception)
             {
@@ -111,7 +113,7 @@ namespace Reex.Controllers
         // POST api/v1/account/verifyEmail
         [HttpPost]
         [Route("verifyEmail")]
-        public async Task<ActionResult> VerifyEmail()
+        public async Task<ActionResult<RequestResponse>> VerifyEmail()
         {
             try
             {
@@ -123,20 +125,20 @@ namespace Reex.Controllers
                     return NotFound(RequestResponse.NotFound("Invalid request."));
                 }
 
-                await firebaseAuthService.SendPasswordResetEmail(authHeader.Parameter);
+                await firebaseAuthService.VerifyEmail(authHeader.Parameter);
 
-                return Ok();
+                return Ok(RequestResponse.Success());
             }
             catch (Exception)
             {
-                return BadRequest(RequestResponse.BadRequest("Something went wrong trying to send verify email."));
+                return BadRequest(RequestResponse.BadRequest("Something went wrong trying to send verification email."));
             }
         }
 
         // POST api/v1/account/mfa/enable
         [HttpPost]
         [Route("mfa/enable")]
-        public ActionResult<ApiResponse<UserProperties>> EnableMfa()
+        public async Task<ActionResult<ApiResponse<UserProperties>>> EnableMfa()
         {
             try
             {
@@ -152,15 +154,25 @@ namespace Reex.Controllers
                 var cacheKey = $"{MFA_CACHE_KEY}{userId}";
                 bool doesExists = memoryCache.TryGetValue(cacheKey, out secret);
 
-                if(!doesExists)
+                var currentProperties = await firebaseDbService.GetUserProperties(userId);
+                if (currentProperties != null && currentProperties.IsMfaEnabled)
+                {
+                    memoryCache.Remove(cacheKey);
+                    memoryCache.Set(cacheKey, currentProperties.Secret, cacheEntryOptions);
+                    currentProperties.Account = userName;
+                    currentProperties.Issuer = issuer;
+                    return Ok(new ApiResponse<UserProperties>(currentProperties));
+                }
+
+                if (!doesExists)
                 {
                     secret = twoFactorAuth.CreateSecret(160);
                     memoryCache.Set(cacheKey, secret, cacheEntryOptions);
-                    var result = new UserProperties(userId, secret);
+                    var result = new UserProperties(userId, secret, issuer, userName);
                     return Ok(new ApiResponse<UserProperties>(result));
                 }
 
-                var cacheResult = new UserProperties(userId, secret);
+                var cacheResult = new UserProperties(userId, secret, issuer, userName);
                 return Ok(new ApiResponse<UserProperties>(cacheResult));
             }
             catch(Exception)
@@ -216,6 +228,7 @@ namespace Reex.Controllers
                     await firebaseDbService.CreateUserProperties(cacheResult);
                 }
 
+                memoryCache.Remove(cacheKey);
                 return Ok(new ApiResponse<UserProperties>(cacheResult));
             }
             catch (Exception)
@@ -227,15 +240,10 @@ namespace Reex.Controllers
         // POST api/v1/account/mfa/disable
         [HttpPost]
         [Route("mfa/disable")]
-        public async Task<ActionResult<ApiResponse<UserProperties>>> VerifyMfaDisable([FromBody] VerifyMfa mfaEnable)
+        public async Task<ActionResult<ApiResponse<UserProperties>>> VerifyMfaDisable()
         {
             try
             {
-                if (mfaEnable is null || string.IsNullOrWhiteSpace(mfaEnable.MfaCode))
-                {
-                    return BadRequest(RequestResponse.BadRequest("Mfa code is required for verification."));
-                }
-
                 var userName = User?.Identity?.Name;
                 var userId = User?.Claims.Where(x => x.Type == CustomClaims.USER_ID).FirstOrDefault()?.Value;
 
@@ -244,30 +252,14 @@ namespace Reex.Controllers
                     return BadRequest(RequestResponse.BadRequest("Something went wrong trying to validate your request."));
                 }
 
-                string secret;
-                var cacheKey = $"{MFA_CACHE_KEY}{userId}";
-                bool doesExists = memoryCache.TryGetValue(cacheKey, out secret);
-
-                if (!doesExists)
-                {
-                    return BadRequest(RequestResponse.BadRequest("Something went wrong. Please try restart the Mfa process."));
-                }
-
-                var verified = twoFactorAuth.VerifyCode(secret, mfaEnable.MfaCode);
-
-                if (!verified)
-                {
-                    return BadRequest(RequestResponse.BadRequest("Invalid Mfa code provided. Please try again."));
-                }
-
                 var currentPropertiesKey = await firebaseDbService.GetUserPropertiesKey(userId);
 
-                if(!string.IsNullOrWhiteSpace(currentPropertiesKey))
+                if(string.IsNullOrWhiteSpace(currentPropertiesKey))
                 {
                     return BadRequest(RequestResponse.BadRequest("Mfa record not found. Please enable Mfa."));
                 }
 
-                var cacheResult = new UserProperties(userId, secret, false);
+                var cacheResult = new UserProperties(userId, string.Empty, false);
                 await firebaseDbService.UpdateUserProperties(currentPropertiesKey, cacheResult);
                 return Ok(new ApiResponse<UserProperties>(cacheResult));
             }
@@ -341,7 +333,10 @@ namespace Reex.Controllers
 
                 var result = await firebaseAuthService.GetUser(authHeader.Parameter);
                 var userPropertiesResult = await firebaseDbService.GetUserProperties(result.UserId);
-                result.IsMfaEnabled = userPropertiesResult.IsMfaEnabled;
+                if (userPropertiesResult != null)
+                {
+                    result.IsMfaEnabled = userPropertiesResult.IsMfaEnabled;
+                }
 
                 return Ok(new ApiResponse<UserDetail>(result));
             }

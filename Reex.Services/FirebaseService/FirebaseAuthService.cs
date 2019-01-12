@@ -48,23 +48,28 @@ namespace Reex.Services.FirebaseService
 
         public async Task<UserDetail> GetUser(string firebaseToken)
         {
-            User user;
+            User cachedUser;
             var cacheKey = firebaseToken;
-            bool doesExists = memoryCache.TryGetValue(cacheKey, out user);
+            bool doesExists = memoryCache.TryGetValue(cacheKey, out cachedUser);
 
-            if (!doesExists)
+            if(!doesExists)
             {
-                user = await authProvider.GetUserAsync(firebaseToken);
+                var user = await authProvider.GetUserAsync(firebaseToken);
 
                 if (user is null)
                 {
                     throw new FirebaseAuthException(string.Empty, string.Empty, string.Empty, new InvalidOperationException());
                 }
 
-                memoryCache.Set(cacheKey, user, cacheEntryOptions);
+                if(user.IsEmailVerified)
+                {
+                    memoryCache.Set(cacheKey, user, cacheEntryOptions);
+                }
+
+                return new UserDetail(user.LocalId, user.Email, user.IsEmailVerified, false);
             }
 
-            return new UserDetail(user.LocalId, user.Email, user.IsEmailVerified, false);
+            return new UserDetail(cachedUser.LocalId, cachedUser.Email, cachedUser.IsEmailVerified, false);
         }
 
         public async Task<LoginStatus> RegisterUser(Register register)

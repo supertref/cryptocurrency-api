@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using NBitcoin;
@@ -79,13 +81,43 @@ namespace Reex.Services.WalletManagementService
 
                 var balance = JsonConvert.DeserializeObject<decimal>(rpcResult.ResultString);
                 var available_balance = balance;
-                var confirmedBalance = balance;         
+                var confirmedBalance = balance;
+                var reexBtcPrice = 0.0M;
+                var reexUsdPrice = 0.0M;
 
-                return new Balance(available_balance, confirmedBalance, SYMBOL, true);
+                try
+                {
+                    using (var client = new HttpClient())
+                    {
+                        client.BaseAddress = new Uri("https://api.crex24.com/v2/public/tickers");
+
+                        // Add an Accept header for JSON format.
+                        client.DefaultRequestHeaders.Accept.Add(
+                            new MediaTypeWithQualityHeaderValue("application/json"));
+
+                        HttpResponseMessage btcReexPriceResponse = await client.GetAsync("?instrument=REEX-BTC");
+                        if(btcReexPriceResponse.IsSuccessStatusCode)
+                        {
+                            reexBtcPrice = confirmedBalance * JsonConvert.DeserializeObject<IList<CoinPrice>>(await btcReexPriceResponse.Content.ReadAsStringAsync()).FirstOrDefault().Price;
+                        }
+
+                        HttpResponseMessage btcUsdPriceResponse = await client.GetAsync("?instrument=BTC-USD");
+                        if(btcUsdPriceResponse.IsSuccessStatusCode)
+                        {
+                            reexUsdPrice = reexBtcPrice * JsonConvert.DeserializeObject<IList<CoinPrice>>(await btcUsdPriceResponse.Content.ReadAsStringAsync()).FirstOrDefault().Price;
+                        }
+                    }
+                }
+                catch
+                {
+
+                }
+
+                return new Balance(available_balance, confirmedBalance, SYMBOL, true, reexBtcPrice, reexUsdPrice);
             }
             catch(Exception)
             {
-                var balance = new Balance(0, 0, SYMBOL, true);
+                var balance = new Balance(0, 0, SYMBOL, true, 0, 0);
                 balance.Status = "error";
                 balance.Message = "An error occured while trying to get your balance";
                 return balance;

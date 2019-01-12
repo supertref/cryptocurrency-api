@@ -52,6 +52,9 @@ namespace Reex.Services.FirebaseService
 
         public async Task CreateUserProperties(UserProperties userProperties)
         {
+            var cacheKey = $"user-{userProperties.UserId}";
+            memoryCache.Remove(cacheKey);
+
             var result = await firebaseClient
                 .Child(userCollectionId)
                 .PostAsync(JsonConvert.SerializeObject(userProperties));
@@ -59,6 +62,9 @@ namespace Reex.Services.FirebaseService
 
         public async Task UpdateUserProperties(string key, UserProperties userProperties)
         {
+            var cacheKey = $"user-{userProperties.UserId}";
+            memoryCache.Remove(cacheKey);
+
             await firebaseClient
                 .Child(userCollectionId)
                 .Child(key)
